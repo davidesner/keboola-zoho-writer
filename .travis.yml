@@ -3,7 +3,7 @@ language: bash
 services:
   - docker
 before_script:
-  - docker build . --tag=my-component
+  - docker build . --tag=esnerda.wr-zoho-crm
 after_success:
   - docker images
 deploy:
