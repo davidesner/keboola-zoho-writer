@@ -15,6 +15,7 @@ import os
 from keboola import docker
 
 
+GIT_VERSION = '1.0.6.2'
 
 # # Config Keys
 KEY_CONTACT_RELATION = 'contactRelations'
@@ -248,6 +249,7 @@ except Exception as e:
     sys.exit(1)
 
 setLogging()
+logging.info("Running version " + GIT_VERSION)
 try:
     zcrmClient = initClient(cfg)
 except Exception as e:
