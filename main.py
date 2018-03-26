@@ -225,7 +225,7 @@ setLogging()
 try:
     zcrmClient = initClient(cfg)
 except Exception as e:
-    logging.error("Failed to init client", str(e))
+    logging.error("Failed to init client" + str(e))
     sys.exit(1)
 
 
@@ -268,7 +268,7 @@ try:
             relDf = pd.read_csv(relTab.get('full_path'), dtype=str)        
             updateRelations(rel, relDf, moduleResults)
 except Exception as e:
-    logging.error("Failed to upload module relations!",str(e))
+    logging.error("Failed to upload module relations!" + str(e))
     sys.exit(1)
 
 logging.info("Write finished successfully!")
