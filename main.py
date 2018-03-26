@@ -15,7 +15,7 @@ import os
 from keboola import docker
 
 
-GIT_VERSION = '1.0.7'
+GIT_VERSION = '1.0.9'
 
 # # Config Keys
 KEY_CONTACT_RELATION = 'contactRelations'
@@ -71,15 +71,15 @@ def setLogging():
         datefmt="%Y-%m-%d %H:%M:%S")
     
     logger = logging.getLogger()
-    # logging_gelf_handler = logging_gelf.handlers.GELFTCPSocketHandler(
-    #    host=os.getenv('KBC_LOGGER_ADDR'),
-    #    port=int(os.getenv('KBC_LOGGER_PORT'))
-    #    )
-    # logging_gelf_handler.setFormatter(logging_gelf.formatters.GELFFormatter(null_character=True))
-    # logger.addHandler(logging_gelf_handler)
+    logging_gelf_handler = logging_gelf.handlers.GELFTCPSocketHandler(
+        host=os.getenv('KBC_LOGGER_ADDR'),
+        port=int(os.getenv('KBC_LOGGER_PORT'))
+        )
+    logging_gelf_handler.setFormatter(logging_gelf.formatters.GELFFormatter(null_character=True))
+    logger.addHandler(logging_gelf_handler)
     
-    # removes the initial stdout logging
-    # logger.removeHandler(logger.handlers[0])
+    #removes the initial stdout logging
+    logger.removeHandler(logger.handlers[0])
     return logger
 #==============================================================================
 
