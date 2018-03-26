@@ -9,6 +9,7 @@ import logging
 import logging_gelf.formatters
 import logging_gelf.handlers
 import sys
+import numpy as np
 import zoho.ApiClient as zohoApi
 import os
 from keboola import docker
@@ -29,6 +30,8 @@ CONTACT_TABLE = "contacts.csv"
 ACCOUNTS_TABLE = "accounts.csv"
 CAMPAIGN_REL_TABLE = "campaignRelations.csv"
 ACCOUNT_REL_TABLE = "accountRelations.csv"
+
+CONST_MAX_CHUNK_SIZE = 100
 
 KEY_PAR_BASEURL = "baseUrl"
 KEY_PAR_ACCOUNTS_URL = "accountsUrl"
@@ -213,6 +216,25 @@ def validateModuleFields(modName, fields):
     invalidFields = zcrmClient.validateModuleFieldNames(modName,fields)
     if invalidFields:
         logging.warning("Some fields defined in the " + modName + " module input table are invalid! \n" + str(invalidFields))
+        
+
+def index_marks(nrows, chunk_size):
+    return range(1 * chunk_size, (nrows // chunk_size + 1) * chunk_size, chunk_size)
+
+def upsertRecordsInChunks(mdNam, moduleDf, dupCheckField):
+    indices = index_marks(moduleDf.shape[0], CONST_MAX_CHUNK_SIZE)
+    chunks =  np.split(moduleDf, indices)
+    modResultIdsAll = None
+    modFailedRecordsAll = None
+    for chunk in chunks:
+        modResultIds, modFailedRecords = zcrmClient.Upsert(mdNam, chunk, dupCheckField);
+        if modResultIdsAll is None and modFailedRecordsAll is None:
+            modResultIdsAll = modResultIds
+            modFailedRecordsAll = modFailedRecords
+        else:
+            modResultIdsAll = modResultIdsAll.append(modResultIds)
+            modFailedRecordsAll = modFailedRecordsAll.append(modFailedRecords)
+    return modResultIdsAll, modFailedRecordsAll
 #==============================================================================
 
 
@@ -246,11 +268,12 @@ try:
         moduleTab = getTable(module.get(KEY_PAR_TABLE_NAME), cfg)
         mdNam = module.get(KEY_PAR_MOD_NAME)
         logging.info("Uploading "+mdNam+ " module data..")
-        if moduleTab:            
+        if moduleTab is not None:            
             moduleDf = pd.read_csv(moduleTab.get('full_path'), dtype=str)
             validateModuleFields(mdNam, moduleDf.columns.values.tolist())
             
-            modResultIds, modFailedRecords = zcrmClient.Upsert(mdNam, moduleDf, module.get(KEY_PAR_MOD_DUP_CHECK));
+           
+            modResultIds, modFailedRecords =  upsertRecordsInChunks(mdNam, moduleDf, module.get(KEY_PAR_MOD_DUP_CHECK));
             moduleResults[mdNam] = modResultIds
             moduleFailedRecords[mdNam] = modFailedRecords
         else:
