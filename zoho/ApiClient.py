@@ -21,7 +21,7 @@ class ApiClient(object):
     KEY_REL_MODULE_OBJ_ID = 'module_obj_id'
     KEY_REL_ENT_ID = 'ent_id'
     
-    ###hardcoded params
+    # ##hardcoded params
     DEF_CAMPAIGN_DUP_CHECK_FIELD = "Campaign_Name"
     DEF_CONTACT_DUP_CHECK_FIELD = "Email"
     DEF_ACCOUNT_DUP_CHECK_FIELD = "Account_Name"
@@ -138,19 +138,28 @@ class ApiClient(object):
                 return resultIds, failedRecords
     
     # Insert or update records
-    def UpdateRelations(self, module, relType, moduleUID, df):
+    def UpdateRelations(self, module, relType, df):
         if df is None:
             return None, None
         failedRecords = []
         for index, row in df.iterrows():
-            record=zcrmsdk.ZCRMRecord.get_instance(module,row[self.KEY_REL_MODULE_OBJ_ID]) #module API Name, entityId
-            junction_record=zcrmsdk.ZCRMJunctionRecord.get_instance(relType, row[self.KEY_REL_ENT_ID]) #module API Name, entityId
-            resp=record.add_relation(junction_record)            
+            record = zcrmsdk.ZCRMRecord.get_instance(module, row[self.KEY_REL_MODULE_OBJ_ID])  # module API Name, entityId
+            junction_record = zcrmsdk.ZCRMJunctionRecord.get_instance(relType, row[self.KEY_REL_ENT_ID])  # module API Name, entityId
+            resp = record.add_relation(junction_record)            
             if 200 > resp.status_code > 299:
                 raise Exception("Api call failed with code: " + resp.code + ", message:" + resp.message, resp.details)    
             else:               
-                failedRecords.append([row[self.KEY_REL_MODULE_OBJ_ID],row[self.KEY_REL_MODULE_OBJ_ID]])
+                failedRecords.append([row[self.KEY_REL_MODULE_OBJ_ID], row[self.KEY_REL_MODULE_OBJ_ID]])
         return failedRecords
+
+    def validateModuleFieldNames(self, moduleName, fieldNames):
+        module_ins = zcrmsdk.ZCRMModule.get_instance(moduleName) 
+        resp = module_ins.get_all_fields()
+        
+        fields = [d.api_name for d in resp.data]
+        invalidFields = list(set(fieldNames) - set(fields))            
+            
+        return invalidFields
 
 
 

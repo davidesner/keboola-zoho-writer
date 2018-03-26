@@ -1,0 +1,110 @@
+{
+	"title": "ZOHO CRM Writer configuration",
+	"type": "object",
+	"properties": {
+		"accountsUrl": {
+			"type": "string",
+			"title": "Zoho accounts URL",
+			"description": "Accounts URL may differ if you use another domain than eu. e.g. https://accounts.zoho.eu",
+			"propertyOrder": 500,
+			"default": "https://accounts.zoho.eu"
+		},
+		"baseUrl": {
+			"type": "string",
+			"title": "Zoho base URL, e.g. www.zohoapis.eu",
+			"description": "Accounts URL may differ if you use another domain than eu. e.g. www.zohoapis.com",
+			"default": "www.zohoapis.eu",
+			"propertyOrder": 600
+		},
+		"modules": {
+			"type": "array",
+			"title": "Modules to upsert",
+			"items": {
+				"type": "object",
+				"title": "Module",
+				"properties": {
+					"moduleName": {
+						"propertyOrder": 2900,
+						"type": "string",
+						"title": "Module name",
+						"description": "ZOHO module name as defined in Zoho. e.g. Contacts. NOTE: (case sensitive!)"
+					},
+					"tableName": {
+						"propertyOrder": 3000,
+						"type": "string",
+						"title": "Table name",
+						"description": "Input table name that contains module data as defined in the input mapping. e.g. contacts"
+					},
+					"moduleDupCheckCol": {
+						"propertyOrder": 5000,
+						"type": "string",
+						"title": "Module duplicate check column",
+						"description": "Column name which is used as a duplicate check for the given module. For example for Contacts it may be Email. Case sensitive!"
+					}
+				},
+				"required": [
+					"moduleName",
+					"moduleDupCheckCol",
+					"tableName"
+				]
+			}
+		},
+		"relatedLists": {
+			"type": "array",
+			"title": "Relations to upsert",
+			"items": {
+				"type": "object",
+				"title": "Relation",
+				"properties": {
+					"moduleName": {
+						"propertyOrder": 2900,
+						"type": "string",
+						"title": "Module name",
+						"description": "Name of the parent module as defined in Zoho. e.g. Campaigns. NOTE: (case sensitive!)"
+					},
+					"tableName": {
+						"propertyOrder": 300,
+						"type": "string",
+						"title": "Table name",
+						"description": "Input table name that contains module data as defined in the input mapping. e.g. campaignContactRels. Caution: the columns of that table must contain following fields:module_obj_id,ent_id. Where module_obj_id => Zoho ID of parent module (e.g. campaigns), ent_id = Zoho ID of related object (e.g. Contact)"
+					},
+					"relatedModuleName": {
+						"propertyOrder": 3000,
+						"type": "string",
+						"title": "Related module name",
+						"description": "Name of the Module which is to be linked to the parent Module. e.g. Contacts"
+					},					
+					"getFromModuleInput": {
+						"propertyOrder": 3200,
+						"type": "number",
+						"title": "Related records upload mode",
+						"description": "Flag whether relation table contains Zoho ids, or Duplicate check fields values. If not set to Standard mode, writer excepts duplicate check field values instead IDs and also all these values to have matching records in imported Module data. I.e. all Campaing and Contact values specified must be contained within Campaign and Contact data specified in Modules section. ",
+						"enum": [
+							0,
+							1
+						],
+						"default": 0,
+						"options": {
+							"enum_titles": [
+								"Standard mode",
+								"Insert and update mode"
+							]
+						}
+					}
+				},
+				"required": [
+					"moduleName",
+					"relatedModuleName",
+					"tableName",
+					"getFromModuleInput"
+				]
+			}
+		}
+	},
+	"required": [
+		"accountsUrl",
+		"baseUrl",
+		"modules",
+		"relatedLists"
+	]
+}

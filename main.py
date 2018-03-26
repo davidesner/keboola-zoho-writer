@@ -8,6 +8,7 @@ import pandas as pd
 import logging
 import logging_gelf.formatters
 import logging_gelf.handlers
+import sys
 import zoho.ApiClient as zohoApi
 import os
 from keboola import docker
@@ -29,11 +30,32 @@ ACCOUNTS_TABLE = "accounts.csv"
 CAMPAIGN_REL_TABLE = "campaignRelations.csv"
 ACCOUNT_REL_TABLE = "accountRelations.csv"
 
+KEY_PAR_BASEURL = "baseUrl"
+KEY_PAR_ACCOUNTS_URL = "accountsUrl"
+KEY_PAR_MODULES = "modules"
+KEY_PAR_RELATED_LISTS = "relatedLists"
+
+KEY_PAR_MOD_NAME = "moduleName"
+KEY_PAR_TABLE_NAME = "tableName"
+KEY_PAR_MOD_DUP_CHECK = "moduleDupCheckCol"
+# # rel lists par
+KEY_PAR_REL_GET_FROM_INPUT = "getFromModuleInput"
+KEY_PAR_REL_MOD_NAME = "relatedModuleName"
 
 
+MANDATORY_PARAMS = [KEY_PAR_BASEURL, KEY_PAR_ACCOUNTS_URL]
 
 
 #==============================================================================
+
+
+
+def validateConfig(dockerConfig):
+    parameters = dockerConfig.get_parameters()
+    for field in MANDATORY_PARAMS:
+        if not parameters[field]:
+            raise Exception('Missing mandatory configuration field: ' + field)
+
 
 
 #================================= Logging ====================================
@@ -61,6 +83,7 @@ def setLogging():
 #============================= Initialise app =================================
 
 def initClient(cfg):
+    cfgPars = cfg.get_parameters()
     refresh_token = cfg.get_oauthapi_data().get('refresh_token')
     client_id = cfg.get_oauthapi_appkey()
     client_secret = cfg.get_oauthapi_appsecret()
@@ -73,10 +96,10 @@ def initClient(cfg):
             'redirect_uri' : REDIRECT_URL,
             'token_persistence_path' : TOKEN_FILE_PATH,
             'access_type' : 'offline',
-            'accounts_url':'https://accounts.zoho.eu'}    
+            'accounts_url':cfgPars.get(KEY_PAR_ACCOUNTS_URL)}
     # #general props
-    cfgPars = cfg.get_parameters()
-    configProps = {'apiBaseUrl' : cfgPars.get("baseUrl"),
+    
+    configProps = {'apiBaseUrl' : cfgPars.get(KEY_PAR_BASEURL),
             'apiVersion' : 'v2',
             'currentUserEmail' : KBC_USER_EMAIL,
             'token_persistence_path' : TOKEN_FILE_PATH,
@@ -96,7 +119,7 @@ def initClient(cfg):
 def getTable(tableName, cfg):
     inTables = cfg.get_input_tables()
     for table in inTables:
-        if table.get('destination') == tableName:
+        if table.get('destination') == tableName+".csv":
             return table
         
     return None    
@@ -144,86 +167,109 @@ def buildModuleRels(relRecords, moduleObjResultIds, relObjResultIds):
 
 def checkRelBuildResults(invalidModuleIds, modName, invalidObjectIds, objName):
     if invalidModuleIds is not None and not invalidModuleIds.empty:
-        logging.warning("Some " + modName + " module ids were not found in " + objName + " input table! \n"+invalidModuleIds.to_string())
+        logging.warning("Some " + modName + " module ids were not found in " + objName + " input table for " + modName 
+                        + ":"+ objName + " relation! \n" + invalidModuleIds.to_string())
         
     if invalidObjectIds is not None and not invalidObjectIds.empty:
-        logging.warning("Some " + objName + " object ids were not found in " + modName + " input table! \n"+invalidObjectIds.to_string())
+        logging.warning("Some " + objName + " object ids were not found in " + modName + " input table for " + modName 
+                        + ":" + objName + " relation! \n" + invalidObjectIds.to_string())
         
-        
+def checkIfContansRel(relation, moduleResults):
+    modName = relation.get(KEY_PAR_MOD_NAME)
+    relModName = relation.get(KEY_PAR_REL_MOD_NAME)
     
+    if not any(modName in d for d in moduleResults):
+        logging.error("Cannot update relation: " + modName + ":" + relModName + " There is no module data imported for module " 
+                      + modName + ". Please make sure you imported all the related records when choosing GetFromModuleInput option!")
+        sys.exit(1)
+    if not any(relModName in d for d in moduleResults):
+        logging.error("Cannot update relation: " + modName + ":" + relModName + " There is no module data imported for module " 
+                      + relModName + ". Please make sure you imported all the related records when choosing GetFromModuleInput option!")
+        sys.exit(1)
+    return moduleResults[modName], moduleResults[relModName]
+
+        
+def updateRelations(rel, relDf, moduleResults):
+        modRelsData = None
+        modName = rel.get(KEY_PAR_MOD_NAME)
+        relModName = rel.get(KEY_PAR_REL_MOD_NAME)
+        if rel.get(KEY_PAR_REL_GET_FROM_INPUT):
+            modRes, relModRes = checkIfContansRel(rel, moduleResults)            
+            modRelsData, notFoundModuleObjects, notFoundRelObjects = buildModuleRels(relDf, modRes, relModRes)
+            checkRelBuildResults(notFoundModuleObjects, modName, notFoundRelObjects, relModName)
+        else:
+            modRelsData = relDf
+        
+        if modRelsData is not None or not modRelsData.empty:
+           zcrmClient.UpdateRelations(modName, relModName, modRelsData)
+        else:
+            logging.warn("No " + zcrmClient.KEY_CAMPAIGNS_MOD_NAME + " module relations were found and updated!")
+
+def validateModuleFields(modName, fields):
+    invalidFields = zcrmClient.validateModuleFieldNames(modName,fields)
+    if invalidFields:
+        logging.warning("Some fields defined in the " + modName + " module input table are invalid! \n" + str(invalidFields))
 #==============================================================================
 
 
 #============================== Write data ====================================  
 cfg = docker.Config(os.environ['KBC_DATADIR'])
 params = cfg.get_parameters()
-
+try:
+    validateConfig(cfg)
+except Exception as e:
+    logging.error(str(e))
+    sys.exit(1)
 
 setLogging()
-zcrmClient = initClient(cfg)
-
-contacts = getTable(CONTACT_TABLE, cfg)
-campaigns = getTable(CAMPAIGN_TABLE, cfg)
-accounts = getTable(ACCOUNTS_TABLE, cfg)
-
-# #relations
-campaignRels = getTable(CAMPAIGN_REL_TABLE, cfg)
-accountnRels = getTable(ACCOUNT_REL_TABLE, cfg)
-
-# # upsert campaigns
-if campaigns:
-    campaignsDf = pd.read_csv(campaigns.get('full_path'), dtype=str)
-    campaignResultIds, campaignFailedRecords = zcrmClient.Upsert(zcrmClient.KEY_CAMPAIGNS_MOD_NAME, campaignsDf, zcrmClient.DEF_CAMPAIGN_DUP_CHECK_FIELD);
-
-# # upsert accounts
-accountsDf = None
-if accounts:
-    accountsDf = pd.read_csv(accounts.get('full_path'), dtype=str)
-
-accountsResultIds, accountsFailedRecords = zcrmClient.Upsert(zcrmClient.KEY_ACCOUNTS_MOD_NAME, accountsDf, zcrmClient.DEF_ACCOUNT_DUP_CHECK_FIELD);
-
-# # upsert contacts
-contactsDf = None
-if contacts:
-    contactsDf = pd.read_csv(contacts.get('full_path'), dtype=str)
-
-contactResultIds, contactFailedRecords = zcrmClient.Upsert(zcrmClient.KEY_CONTACTS_MOD_NAME, contactsDf, zcrmClient.DEF_CONTACT_DUP_CHECK_FIELD);
+try:
+    zcrmClient = initClient(cfg)
+except Exception as e:
+    logging.error("Failed to init client", str(e))
+    sys.exit(1)
 
 
-# # update Campaign relations if any
-relDatasets = params.get(KEY_CONTACT_RELATION)
-modRelsData = None
-if campaignRels:
-    campaignRelsDf = pd.read_csv(campaignRels.get('full_path'), dtype=str)    
-    if zcrmClient.KEY_CAMPAIGNS_MOD_NAME in relDatasets:
-        modRelsData, notFoundModuleObjects, notFoundRelObjects = buildModuleRels(campaignRelsDf, campaignResultIds, contactResultIds)
-        checkRelBuildResults(notFoundModuleObjects, zcrmClient.KEY_CAMPAIGNS_MOD_NAME, notFoundRelObjects, zcrmClient.KEY_CONTACTS_MOD_NAME)
-    else:
-        modRelsData = campaignRelsDf
-    
-    if modRelsData is not None or not modRelsData.empty:
-       zcrmClient.UpdateRelations(zcrmClient.KEY_CAMPAIGNS_MOD_NAME, zcrmClient.KEY_CONTACTS_MOD_NAME, zcrmClient.DEF_CAMPAIGN_DUP_CHECK_FIELD, modRelsData)
-    else:
-        logging.warn("No " + zcrmClient.KEY_CAMPAIGNS_MOD_NAME + " module relations were found and updated!")
-    
-# # update Account relations if any
+modules = params.get(KEY_PAR_MODULES)
+moduleResults = {}
+moduleFailedRecords = {}
 
-if accountnRels:
-    modRelsData = None
-    accountRelsDf = pd.read_csv(accountnRels.get('full_path'), dtype=str)
-    
-    modRelsData = None
-    if zcrmClient.KEY_ACCOUNTS_MOD_NAME in relDatasets:
-        modRelsData = buildModuleRels(accountRelsDf, accountsResultIds, contactResultIds)
-        checkRelBuildResults(notFoundModuleObjects, zcrmClient.KEY_ACCOUNTS_MOD_NAME, notFoundRelObjects, zcrmClient.KEY_CONTACTS_MOD_NAME)
-    else:
-        modRelsData = accountnRels
-     
-    if modRelsData is not None or not modRelsData.empty:       
-        zcrmClient.UpdateRelations(zcrmClient.KEY_ACCOUNTS_MOD_NAME, zcrmClient.KEY_CONTACTS_MOD_NAME, zcrmClient.DEF_ACCOUNT_DUP_CHECK_FIELD, modRelsData)
-    else:
-        logging.warn("No " + zcrmClient.KEY_CAMPAIGNS_MOD_NAME + " module relations were found and updated!")
+logging.info('Uploading modules...')
+if not modules:
+    logging.info("No modules specified!")
 
+try:
+    for module in modules:
+        moduleTab = getTable(module.get(KEY_PAR_TABLE_NAME), cfg)
+        mdNam = module.get(KEY_PAR_MOD_NAME)
+        logging.info("Uploading "+mdNam+ " module data..")
+        if moduleTab:            
+            moduleDf = pd.read_csv(moduleTab.get('full_path'), dtype=str)
+            validateModuleFields(mdNam, moduleDf.columns.values.tolist())
+            
+            modResultIds, modFailedRecords = zcrmClient.Upsert(mdNam, moduleDf, module.get(KEY_PAR_MOD_DUP_CHECK));
+            moduleResults[mdNam] = modResultIds
+            moduleFailedRecords[mdNam] = modFailedRecords
+        else:
+            logging.error("Specified table name: " + module.get(KEY_PAR_TABLE_NAME) + " not found in input mapping for module: " + module)
+            sys.exit(0)
+except Exception as e:
+    logging.error("Failed to upload modules!" + str(e))
+    sys.exit(1)
+
+
+relations = params.get(KEY_PAR_RELATED_LISTS)
+try:
+    for rel in relations:
+        relTab = getTable(rel.get(KEY_PAR_TABLE_NAME), cfg) 
+        moduleName = rel.get(KEY_PAR_MOD_NAME)
+        relModuleName = rel.get(KEY_PAR_REL_MOD_NAME)
+        logging.info("Uploading "+moduleName+":"+ relModuleName + " module relations..")
+        if relTab:
+            relDf = pd.read_csv(relTab.get('full_path'), dtype=str)        
+            updateRelations(rel, relDf, moduleResults)
+except Exception as e:
+    logging.error("Failed to upload module relations!",str(e))
+    sys.exit(1)
 
 logging.info("Write finished successfully!")
 
