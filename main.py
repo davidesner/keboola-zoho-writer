@@ -225,7 +225,8 @@ setLogging()
 try:
     zcrmClient = initClient(cfg)
 except Exception as e:
-    logging.error("Failed to init client" + str(e))
+    print e
+    #logging.error("Failed to init client" + str(e))
     sys.exit(1)
 
 
