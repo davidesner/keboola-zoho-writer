@@ -88,8 +88,12 @@ def initClient(cfg):
     client_id = cfg.get_oauthapi_appkey()
     client_secret = cfg.get_oauthapi_appsecret()
    
-    if refresh_token == '' or client_id == '' or client_secret == '':
-        raise Exception ("Please enter your Client ID, Client Secret and Refresh Token.")
+    if not refresh_token :
+        raise Exception ("Refresh Token not provided!")
+    elif not client_id:
+        raise Exception ("Client ID not provided!.")
+    elif not client_secret:
+        raise Exception ("Client Secret not provided!.")
 
     oAuthProps = {'client_id' : client_id,
             'client_secret' : client_secret,
@@ -225,8 +229,7 @@ setLogging()
 try:
     zcrmClient = initClient(cfg)
 except Exception as e:
-    print e
-    #logging.error("Failed to init client" + str(e))
+    logging.error("Failed to init client" + str(e))
     sys.exit(1)
 
 
