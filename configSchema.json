@@ -33,7 +33,7 @@
 						"propertyOrder": 3000,
 						"type": "string",
 						"title": "Table name",
-						"description": "Input table name that contains module data as defined in the input mapping. e.g. contacts"
+						"description": "Input table name that contains module data as defined in the input mapping. e.g. contacts.csv"
 					},
 					"moduleDupCheckCol": {
 						"propertyOrder": 5000,
@@ -66,7 +66,7 @@
 						"propertyOrder": 300,
 						"type": "string",
 						"title": "Table name",
-						"description": "Input table name that contains module data as defined in the input mapping. e.g. campaignContactRels. Caution: the columns of that table must contain following fields:module_obj_id,ent_id. Where module_obj_id => Zoho ID of parent module (e.g. campaigns), ent_id = Zoho ID of related object (e.g. Contact)"
+						"description": "Input table name that contains module data as defined in the input mapping. e.g. campaignContactRels. Caution: the columns of that table must contain following fields:module_obj_id,ent_id. Where module_obj_id => Zoho ID of parent module (e.g. campaigns.csv), ent_id = Zoho ID of related object (e.g. Contact)"
 					},
 					"relatedModuleName": {
 						"propertyOrder": 3000,

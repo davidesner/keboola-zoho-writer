@@ -119,7 +119,7 @@ def initClient(cfg):
 def getTable(tableName, cfg):
     inTables = cfg.get_input_tables()
     for table in inTables:
-        if table.get('destination') == tableName+".csv":
+        if table.get('destination') == tableName:
             return table
         
     return None    
