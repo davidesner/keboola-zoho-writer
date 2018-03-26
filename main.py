@@ -15,7 +15,7 @@ import os
 from keboola import docker
 
 
-GIT_VERSION = '1.0.6.2'
+GIT_VERSION = '1.0.7'
 
 # # Config Keys
 KEY_CONTACT_RELATION = 'contactRelations'
