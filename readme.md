@@ -6,9 +6,11 @@ Writer component for Keboola Connection allowing to upsert Modules in ZOHO CRM a
 Component is capable of writing two types of data:
 
 ###1. Module data
+
 Component takes input tables that needs to contains all fields to be updated for required Zoho module. Note that the column names **must exactly match the Zoho module api names!** These are usually field names separated by `_` For instance `Campaign_Name`. If some field in the source table is not matching the one in Zoho a warning is produced, but the writer does not fail. The process fails only if some of the Zoho required fields are misssing.  
 
-###2. Module relations**
+###2. Module relations
+
 This allows to upload relations between modules, i.e. link modules to a parent module list. For example link all `Contacts` with `Campaigns`.
 
 The input table header **must have following structure:** `module_obj_id, ent_id` 
@@ -16,10 +18,13 @@ The input table header **must have following structure:** `module_obj_id, ent_id
 `ent_id` should contain related records Zoho ID, for instance of a Contact
 
 The module relations can work in two regimes:
+
 **Standard mode**
+
 When the `Related records upload mode` parameter is set to `Standard mode`. The component expects the proper Zoho IDs to be present in the table.
 
 **Insert and Update mode** 
+
 In this mode all records specified in the relations have to be present in the Module input data. This is useful in situations when you don't know the Zoho IDs upfront and some of the records do not exist in the Zoho yet. All the Parent objects like Campaings and all the Related objects like Contacts needs to be part of the import in `Modules` section. If they are not, the process will produce a warning.
 
 The content of the input table is in this case different
@@ -28,6 +33,7 @@ The content of the input table is in this case different
 
 
 ### Configuration parameters
+
 - **Zoho accounts URL** – (REQ) Accounts URL may differ if you use another domain than eu. e.g. `https://accounts.zoho.eu`
 - **Zoho base URL** - Accounts URL may differ if you use another domain than eu. e.g. `www.zohoapis.com`
 - **Modules to upsert** – (REQ) Modules that will be updated/inserted.
