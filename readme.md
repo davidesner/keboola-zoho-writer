@@ -5,11 +5,11 @@ Writer component for Keboola Connection allowing to upsert Modules in ZOHO CRM a
 
 Component is capable of writing two types of data:
 
-###1. Module data
+### 1. Module data
 
 Component takes input tables that needs to contains all fields to be updated for required Zoho module. Note that the column names **must exactly match the Zoho module api names!** These are usually field names separated by `_` For instance `Campaign_Name`. If some field in the source table is not matching the one in Zoho a warning is produced, but the writer does not fail. The process fails only if some of the Zoho required fields are misssing.  
 
-###2. Module relations
+### 2. Module relations
 
 This allows to upload relations between modules, i.e. link modules to a parent module list. For example link all `Contacts` with `Campaigns`.
 
