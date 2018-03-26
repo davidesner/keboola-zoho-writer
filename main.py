@@ -279,7 +279,7 @@ try:
             moduleResults[mdNam] = modResultIds
             moduleFailedRecords[mdNam] = modFailedRecords
         else:
-            logging.error("Specified table name: " + module.get(KEY_PAR_TABLE_NAME) + " not found in input mapping for module: " + module)
+            logging.error("Specified table name: " + module.get(KEY_PAR_TABLE_NAME) + " not found in input mapping for module: " + mdNam)
             sys.exit(0)
 except Exception as e:
     logging.error("Failed to upload modules!" + str(e))
