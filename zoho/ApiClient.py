@@ -120,6 +120,8 @@ class ApiClient(object):
 
     def checkResultStatus(self, resultIds):
         failedRecords = resultIds[(resultIds.status <> 'success')]
+        # set col width for logging df
+        pd.options.display.max_colwidth = 500
         if not failedRecords.empty:
             self.logging.warn("Some records failed to be uploaded: " + failedRecords.to_string())
         return failedRecords
