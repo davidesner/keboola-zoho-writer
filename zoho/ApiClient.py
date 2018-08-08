@@ -112,8 +112,9 @@ class ApiClient(object):
                 uid = entity_response.data.field_data.get(uniqueFieldName)
             status = entity_response.status  
             message = entity_response.message
-            data.append([entId, uid, status, message])   
-        res = pd.DataFrame(data, columns=[self.KEY_ENTITY_ID, self.KEY_RES_UID, 'status', 'message']) 
+            details = entity_response.details
+            data.append([entId, uid, status, message, details])   
+        res = pd.DataFrame(data, columns=[self.KEY_ENTITY_ID, self.KEY_RES_UID, 'status', 'message', 'details']) 
         return res
 
 
